@@ -4,19 +4,20 @@ import { Database } from '@/supabase/functions/_lib/database';
 import { toast } from '@/components/ui/use-toast';
 import IconButton from "@mui/material/IconButton";
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import EditIcon from '@mui/icons-material/Edit';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 
 type Props = {
   document: any;
   refetchDocuments: Function;
+  selectedDoc: any;
+  selectDoc: Function;
 }
 
-export const FileCard: React.FC<Props> = ({document, refetchDocuments}) => {
+export const FileCard: React.FC<Props> = ({document, refetchDocuments, selectedDoc, selectDoc}) => {
   const supabase = createClientComponentClient<Database>();
 
   return(
-      <div>
+      <div style={document.name === selectedDoc.name ? {border:"1px solid black", borderRadius:"5px"} : {border: "none"}}>
         <div style={{width: "100%", display: "flex", justifyContent: "space-between"}}>
           <IconButton 
             onClick={async () => {
@@ -44,9 +45,6 @@ export const FileCard: React.FC<Props> = ({document, refetchDocuments}) => {
             }}
           >
             <CloudDownloadIcon />
-          </IconButton>
-          <IconButton>
-            <EditIcon />
           </IconButton>
           <IconButton 
             onClick={async () => {
@@ -77,6 +75,7 @@ export const FileCard: React.FC<Props> = ({document, refetchDocuments}) => {
         </div>
         <div
           className="flex flex-col gap-2 justify-center items-center border rounded-md p-4 sm:p-6 text-center overflow-hidden cursor-pointer hover:bg-slate-100"
+          onClick={() => selectDoc(document)}
         >
           <svg
             width="50px"

@@ -4,9 +4,11 @@ create extension if not exists vector with schema extensions;
 create table documents (
   id bigint primary key generated always as identity,
   name text not null,
-  context_buckets text[],
+  context_buckets text[] not null default '{}',
   markdown_file_id uuid references storage.objects (id),
+  markdown_file_hash text,
   original_file_id uuid not null references storage.objects (id) on delete cascade,
+  original_file_hash text,
   created_by uuid not null references auth.users (id) default auth.uid(),
   created_at timestamp with time zone not null default now()
 );
@@ -46,6 +48,11 @@ on documents for insert to authenticated with check (
 
 create policy "Users can query their own documents"
 on documents for select to authenticated using (
+  auth.uid() = created_by
+);
+
+create policy "Users can update their own documents"
+on documents for update to authenticated using (
   auth.uid() = created_by
 );
 
