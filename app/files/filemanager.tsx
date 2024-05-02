@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/supabase/functions/_lib/database';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,10 @@ type Props = {
 export const FileManager: React.FC<Props> = ({documents, refetchDocuments, contextBuckets, selectedDoc, selectDoc, selectedContext, setSelectedContext}) => {
     const supabase = createClientComponentClient<Database>();
 
+    const standardizePdfFilename = (filename: string): string => {
+        const sanitizedFilename = filename.split('.pdf')[0].split('.PDF')[0].split('.Pdf')[0].split('.pDf')[0].split('.pdF')[0].split('.pDF')[0].split('.PdF')[0].split('.PDf')[0]
+        return `${sanitizedFilename}.pdf`
+    }
 
     const handleContextChange = (event: SelectChangeEvent) => {
         setSelectedContext(event.target.value as string);
@@ -43,18 +47,29 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                     'That selected file type is unsupported. Please select a PDF file.',
                 });
             }else{
+                const selectedFilename = standardizePdfFilename(selectedFile.name)
                 const hash = await hashFile(selectedFile)
-                let { data: fetchHashData, error: fetchHashError} = await supabase
+                const { data: fetchHashData, error: fetchHashError} = await supabase
                     .from('documents')
-                    .select('id')
-                    .eq('name', selectedFile.name)
+                    .select()
+                    .eq('original_file_hash', hash)
                 if (fetchHashError) {
                     toast({
                     variant: 'destructive',
                     description: 'Failed to query documents for this hash.',
                     });
                 }
-                if(!fetchHashData){
+                const { data: fetchFilenameData, error: fetchFilenameError} = await supabase
+                    .from('documents')
+                    .select()
+                    .eq('name', selectedFilename)
+                if (fetchFilenameError) {
+                    toast({
+                    variant: 'destructive',
+                    description: 'Failed to query documents for this filename.',
+                    });
+                }
+                if(!fetchHashData || !fetchFilenameData){
                     console.error("No data returned from the query.")
                 }else if(fetchHashData.length > 0){
                     console.error("A document with this hash already exists in the database.", hash)
@@ -62,11 +77,17 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                         variant: 'destructive',
                         description: 'This document already exists on the platform.',
                     });
+                }else if(fetchFilenameData.length > 0){
+                    console.error("A document with this name already exists in the database.", hash)
+                    toast({
+                        variant: 'destructive',
+                        description: 'A document with this name already exists on the platform.',
+                    });
                 }else{
-                    let { error: uploadFileError} = await supabase.storage
+                    const { error: uploadFileError} = await supabase.storage
                         .from('original_files')
                         .upload(
-                            `${crypto.randomUUID()}/${selectedFile.name}`,
+                            `${crypto.randomUUID()}/${selectedFilename}`,
                             selectedFile
                         );
                     if (uploadFileError) {
@@ -78,30 +99,29 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                         return;
                     }
                     else{
-                        let { data, error} = await supabase
+                        const { data: dataNewFile, error: errorNewFile} = await supabase
                             .from('documents')
                             .select('id')
-                            .eq('name', selectedFile.name)
-                        if (error) {
+                            .eq('name', selectedFilename)
+                        if (errorNewFile) {
                             toast({
                             variant: 'destructive',
                             description: 'Failed to find the docement entry related to the uploaded PDF file.',
                             });
                         }
-                        console.log(data)
-                        if(!data){
+                        if(!dataNewFile){
                             console.error('No data returned from the query. Document entry does not exist for uploaded PDF')
-                        }else if(data.length > 1){
+                        }else if(dataNewFile.length > 1){
                             console.error('Multiple documents were returned from the query.')
-                        }else if(data.length === 0) {
+                        }else if(dataNewFile.length === 0) {
                             console.error('No documents were returned from the query.')
                         }else{
-                            ({ error } = await supabase
+                            const { error: errorUpdateHash } = await supabase
                                 .from('documents')
                                 .update({original_file_hash: hash})
-                                .eq('id', data[0].id))
+                                .eq('id', dataNewFile[0].id)
                             refetchDocuments()
-                            if (error) {
+                            if (errorUpdateHash) {
                                 toast({
                                 variant: 'destructive',
                                 description: 'Failed to update document context. Please try again.',
