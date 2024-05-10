@@ -4,14 +4,19 @@ import { toast } from '@/components/ui/use-toast';
 import { Box, Chip, InputLabel, MenuItem, OutlinedInput } from "@mui/material";
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useState, useEffect } from "react";
-
+interface PDFTable {
+  headers: string[];
+  rows: string[][][];
+}
+type PDFLine = string[]
 type Props = {
   document: any;
   contextBuckets: string[];
   refetchDocuments: Function;
+  text: (PDFLine | PDFTable)[];
 }
 
-export const ContentPane: React.FC<Props>= ({document, contextBuckets, refetchDocuments}) => {
+export const ContentPane: React.FC<Props>= ({document, contextBuckets, refetchDocuments, text}) => {
   const supabase = createClientComponentClient<Database>();
   const [selectedContextBuckets, setSelectedContextBuckets] = useState<string[]>([])
   useEffect(()=>{
@@ -92,6 +97,50 @@ export const ContentPane: React.FC<Props>= ({document, contextBuckets, refetchDo
         :
         "Select a document."
       }
+      <div style={{border: "1px solid grey", margin: '5px', padding: '30px'}}>
+      {text?.map((line, i) => {
+        if(Array.isArray(line)){
+          if(line.length === 1){
+            return(<p key={i} style={{marginBottom: '20px'}}>{line[0]}</p>)
+          }else{
+            return(
+              <div key={i} style={{width: "100%", display: "flex", justifyContent: "space-between"}}>
+                {line.map((item, j) => {
+                  return(<span key={j}>{item}</span>)
+                })}
+              </div>
+            )
+          }
+        }else{
+          return(
+            <div key={i} style={{display:'flex', justifyContent: 'center'}}>
+            <table style={{borderCollapse: "collapse", width: "80%"}}>
+              <tbody>
+              <tr>
+                {line.headers.map((header, j) => {
+                  return(
+                    <th key={j} style={{padding: '8px', textAlign:'center', borderBottom: '1px solid #ddd'}}>{header}</th>
+                  )
+                })}
+              </tr>
+              {line.rows.map((row, j) => {
+                return(
+                  <tr key={j}>
+                    {line.rows[j].map((item, k) => {
+                      return(
+                        <td key={k}style={{padding: '8px', textAlign:'center', borderBottom: '1px solid #ddd'}}>{item}</td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+              </tbody>
+            </table>
+            </div>
+          )
+        }
+        })}
+      </div>
     </div>
   )
 }

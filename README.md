@@ -1,3 +1,34 @@
+# SPAI
+## Edge Functions
+### Hash File
+* Calling the function
+- hash-file expects the file to be included as FormData in the body of the request
+- hash-file returns an object with data and error keys
+```
+{
+  data: "6ba67..."
+  error: null
+}
+```
+
+```
+const formData = new FormData();
+formData.append('file', file);
+const response = await supabase.functions.invoke('hash-file', {
+    body: formData
+})
+if(response.error){
+    ...handle error...
+}else{
+    const hash = response.data
+}
+```
+
+
+
+
+
+<h1>------TUTORIAL MARKDOWN BELOW------</h1>
 <img alt="pgvector to Prod in 2 hours" src="./assets/hero.png">
 <h1 align="center">Workshop: pgvector to Prod in 2 hours</h1>
 

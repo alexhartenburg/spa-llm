@@ -8,6 +8,15 @@ import { useEffect, useState } from 'react';
 import { FileManager } from './filemanager';
 import { ContentPane } from './contentpane';
 
+interface PDFTable {
+  headers: string[];
+  rows: string[][][];
+}
+type PDFLine = string[]
+interface PDFData {
+  text: (PDFLine | PDFTable)[];
+}
+
 export default function FilesPage() {
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
@@ -15,6 +24,7 @@ export default function FilesPage() {
   const [contextBuckets, setContextBuckets] = useState(['Policies', 'Technical Narritives', 'My Files', 'No Bucket']);
   const [selectedDocument, setSelectedDocument] = useState({id:null, context_buckets:null})
   const [selectedContext, setSelectedContext] = useState("My Files")
+  const [text, setText] = useState<(PDFLine | PDFTable)[]>([])
 
   const { data: documents, refetch: refetchDocuments } = useQuery(['files'], async () => {
     const { data, error } = await supabase
@@ -48,8 +58,8 @@ export default function FilesPage() {
 
   return (
     <div className="max-w-6xl w-full flex flex-row gap-1 grow items-stretch">
-      <FileManager documents={documents} refetchDocuments={refetchDocuments} contextBuckets={contextBuckets} selectedDoc={selectedDocument} selectDoc={setSelectedDocument} selectedContext={selectedContext} setSelectedContext={setSelectedContext} />
-      <ContentPane document={selectedDocument} contextBuckets={contextBuckets} refetchDocuments={refetchDocuments}/>
+      <FileManager documents={documents} refetchDocuments={refetchDocuments} contextBuckets={contextBuckets} selectedDoc={selectedDocument} selectDoc={setSelectedDocument} selectedContext={selectedContext} setSelectedContext={setSelectedContext} setText={setText} />
+      <ContentPane document={selectedDocument} contextBuckets={contextBuckets} refetchDocuments={refetchDocuments} text={text}/>
     </div>
   );
 }

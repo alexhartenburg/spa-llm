@@ -6,7 +6,7 @@ import { FileCard } from './filecard';
 import { toast } from '@/components/ui/use-toast';
 import { InputLabel, MenuItem } from "@mui/material";
 import Select, { SelectChangeEvent } from '@mui/material/Select';
-import hashFile from './hashfile';
+import submitPdf from "./submitpdf";
 
 type Props = {
     documents: any[] | undefined;
@@ -16,15 +16,11 @@ type Props = {
     selectDoc: Function;
     selectedContext: any;
     setSelectedContext: Function;
+    setText: Function;
 }
 
-export const FileManager: React.FC<Props> = ({documents, refetchDocuments, contextBuckets, selectedDoc, selectDoc, selectedContext, setSelectedContext}) => {
+export const FileManager: React.FC<Props> = ({documents, refetchDocuments, contextBuckets, selectedDoc, selectDoc, selectedContext, setSelectedContext, setText}) => {
     const supabase = createClientComponentClient<Database>();
-
-    const standardizePdfFilename = (filename: string): string => {
-        const sanitizedFilename = filename.split('.pdf')[0].split('.PDF')[0].split('.Pdf')[0].split('.pDf')[0].split('.pdF')[0].split('.pDF')[0].split('.PdF')[0].split('.PDf')[0]
-        return `${sanitizedFilename}.pdf`
-    }
 
     const handleContextChange = (event: SelectChangeEvent) => {
         setSelectedContext(event.target.value as string);
@@ -47,95 +43,22 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                     'That selected file type is unsupported. Please select a PDF file.',
                 });
             }else{
-                const selectedFilename = standardizePdfFilename(selectedFile.name)
-                const hash = await hashFile(selectedFile)
-                const { data: fetchHashData, error: fetchHashError} = await supabase
-                    .from('documents')
-                    .select()
-                    .eq('original_file_hash', hash)
-                if (fetchHashError) {
-                    toast({
-                    variant: 'destructive',
-                    description: 'Failed to query documents for this hash.',
-                    });
-                }
-                const { data: fetchFilenameData, error: fetchFilenameError} = await supabase
-                    .from('documents')
-                    .select()
-                    .eq('name', selectedFilename)
-                if (fetchFilenameError) {
-                    toast({
-                    variant: 'destructive',
-                    description: 'Failed to query documents for this filename.',
-                    });
-                }
-                if(!fetchHashData || !fetchFilenameData){
-                    console.error("No data returned from the query.")
-                }else if(fetchHashData.length > 0){
-                    console.error("A document with this hash already exists in the database.", hash)
-                    toast({
-                        variant: 'destructive',
-                        description: 'This document already exists on the platform.',
-                    });
-                }else if(fetchFilenameData.length > 0){
-                    console.error("A document with this name already exists in the database.", hash)
-                    toast({
-                        variant: 'destructive',
-                        description: 'A document with this name already exists on the platform.',
-                    });
-                }else{
-                    const { error: uploadFileError} = await supabase.storage
-                        .from('original_files')
-                        .upload(
-                            `${crypto.randomUUID()}/${selectedFilename}`,
-                            selectedFile
-                        );
-                    if (uploadFileError) {
-                        toast({
-                            variant: 'destructive',
-                            description:
-                            'There was an error uploading the file. Please try again.',
-                        });
-                        return;
-                    }
-                    else{
-                        const { data: dataNewFile, error: errorNewFile} = await supabase
-                            .from('documents')
-                            .select('id')
-                            .eq('name', selectedFilename)
-                        if (errorNewFile) {
-                            toast({
-                            variant: 'destructive',
-                            description: 'Failed to find the docement entry related to the uploaded PDF file.',
-                            });
-                        }
-                        if(!dataNewFile){
-                            console.error('No data returned from the query. Document entry does not exist for uploaded PDF')
-                        }else if(dataNewFile.length > 1){
-                            console.error('Multiple documents were returned from the query.')
-                        }else if(dataNewFile.length === 0) {
-                            console.error('No documents were returned from the query.')
-                        }else{
-                            const { error: errorUpdateHash } = await supabase
-                                .from('documents')
-                                .update({original_file_hash: hash})
-                                .eq('id', dataNewFile[0].id)
-                            refetchDocuments()
-                            if (errorUpdateHash) {
-                                toast({
-                                variant: 'destructive',
-                                description: 'Failed to update document context. Please try again.',
-                                });
-                            }else{
-                                refetchDocuments()
-                            }
-                        }                    
-                    }
-                }
+                const fileUploadStatus = await submitPdf(selectedFile)
+                console.log(fileUploadStatus)
+                refetchDocuments()
             }
         }
         refetchDocuments()
         e.target.value = '';
+    }
+    const testClick = async () => {
+        const response = await supabase.functions.invoke('parse-pdf',{
+            body: {path: '58a24035-790e-4e3c-8f77-0a8f32878dc0/PO-CEO-16 (07) Paid Time Off Policy 01-2023.pdf'}
+        })
+        setText(response.data.text)
+    }
+    const testClickClear = () => {
+        setText([])
     }
     
     return(
@@ -149,6 +72,10 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                         handleFileChange(e)
                     }}
                 />
+            </div>
+            <div style={{width: "100%", display: "flex", justifyContent: "space-between"}}>
+                <button onClick={testClick}>Test</button>
+                <button onClick={testClickClear}>Clear</button>
             </div>
             <div className="w-full">
                 <InputLabel id="context-bucket-label">
