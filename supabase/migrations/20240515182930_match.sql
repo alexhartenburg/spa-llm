@@ -9,9 +9,10 @@ as $$
 #variable_conflict use_variable
 begin
   return query
-  select *
+  select document_sections.*
   from document_sections
-  where document_sections.embedding <#> embedding < -match_threshold
+  join documents on document_sections.document_id = documents.id
+  where documents.context_buckets && document and document_sections.embedding <#> embedding < -match_threshold
 	order by document_sections.embedding <#> embedding;
 end;
 $$;
