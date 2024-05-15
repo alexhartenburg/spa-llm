@@ -50,8 +50,23 @@ Deno.serve(async (req) => {
       } = await supabaseClient.auth.getUser(token)
 
       // Get the path from the request and download the file from the storage bucket
-      const { path } = await req.json()
-      const { data: dataPdfFile, error } = await supabaseClient.storage.from('original_files').download(path)
+      const { document_id } = await req.json()
+      const { data: document } = await supabaseClient
+        .from('documents_with_storage_path')
+        .select()
+        .eq('id', document_id)
+        .single();
+      if (!document?.storage_object_path) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to find uploaded document' }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+      }
+      const { data: dataPdfFile, error } = await supabaseClient.storage.from('files').download(document?.storage_object_path)
+      
       let result: PDFData = {text: []}
       if(dataPdfFile){
         result = await parsePDF(dataPdfFile)
@@ -104,6 +119,21 @@ const parsePDF = async (file: Blob): Promise<PDFData> => {
   const numPages = pdfData.numPages
   for(let i = 1; i <= numPages; i++){
     const page = await pdfData.getPage(i)
+    // page.getOperatorList()
+    //   .then((opList:any) => {
+    //     let count = 0;
+    //     for (let i = 0; i < opList.fnArray.length; i++) {
+    //       const fn = opList.fnArray[i];      
+    //       if (fn === pdfjsLib.OPS.constructPath) {
+    //         const args = opList.argsArray[i];
+    //         if (args[0][0] === pdfjs.OPS.rectangle) {
+    //           console.log(args)
+    //           count++
+    //         }
+    //       }
+    //     }
+    //     console.log(count)
+    //   })
     const yTolerance = 0.5 * 12                                           // 12 represents 12pt font size, lines within half a line height are considered part of the same line
     const textContent = await page.getTextContent()
     let lines = getLines(textContent, yTolerance)
@@ -115,9 +145,9 @@ const parsePDF = async (file: Blob): Promise<PDFData> => {
       result.text.push(lineText)
     }
   }
-  result.text = combineTables(result.text)
-  result.text = idHeadings(result.text)
-  result.text = idBullets(result.text)
+  // result.text = combineTables(result.text)
+  // result.text = idHeadings(result.text)
+  // result.text = idBullets(result.text)
   return result
 }
 
@@ -156,26 +186,31 @@ const combineBrokenItems = (lines: any, lineNum: number) => {
   let fontSize = 12
   //Go through the items in the line and if they are very close to touching, make them all one text item
   for(let i = 1; i < lines[lineNum].items.length; i++){
-    if(lines[lineNum].items[i].fontSize > fontSize)lines[lineNum].items[i-1].xEnd += offset
-    if(Math.abs(lines[lineNum].items[i].x - lines[lineNum].items[i-1].xEnd) < 1){
+    // if(lines[lineNum].items[i].fontSize > fontSize)lines[lineNum].items[i-1].xEnd += offset
+    // if(Math.abs(lines[lineNum].items[i].x - lines[lineNum].items[i-1].xEnd) < 5){
       lines[lineNum].items[i-1].text += lines[lineNum].items[i].text
-      if(lines[lineNum].items[i].fontSize < lines[lineNum].items[i-1].fontSize || (lines[lineNum].items[i].fontSize === lines[lineNum].items[i-1].fontSize && offset > 0)){
+      // if(lines[lineNum].items[i].fontSize < lines[lineNum].items[i-1].fontSize || (lines[lineNum].items[i].fontSize === lines[lineNum].items[i-1].fontSize && offset > 0)){
+      //   lines[lineNum].items[i-1].xEnd = lines[lineNum].items[i].xEnd
+      //   offset += (lines[lineNum].items[i].xEnd - lines[lineNum].items[i].x)*12/lines[lineNum].items[i].fontSize - (lines[lineNum].items[i].xEnd - lines[lineNum].items[i].x);
+      //   fontSize = lines[lineNum].items[i].fontSize
+      // }else{
         lines[lineNum].items[i-1].xEnd = lines[lineNum].items[i].xEnd
-        offset += (lines[lineNum].items[i].xEnd - lines[lineNum].items[i].x)*12/lines[lineNum].items[i].fontSize - (lines[lineNum].items[i].xEnd - lines[lineNum].items[i].x);
-        fontSize = lines[lineNum].items[i].fontSize
-      }else{
-        lines[lineNum].items[i-1].xEnd = lines[lineNum].items[i].xEnd
-        offset = 0
-        fontSize = 12
-      }
+        // offset = 0
+        // fontSize = 12
+      // }
       lines[lineNum].items.splice(i, 1)
       i--
-    }
+    // }
   }
   return lines
 }
 
 const combineLineBreaks = (lines: any, lineNum: number) => {
+  let height = 0;
+  lines[lineNum + 1]?.items.forEach((item: any) => {
+    if(item.fontSize > height) height = item.fontSize
+  })
+
   if(lines[lineNum].items.length === 1 && lines[lineNum].items[0].lineBreak && lines[lineNum + 1].items.length === 1){
     while(lines[lineNum].items[0].lineBreak){
       lines[lineNum].items[0].text += ` ${lines[lineNum + 1].items[0].text}`

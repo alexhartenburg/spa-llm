@@ -20,15 +20,14 @@ interface PDFData {
 export default function FilesPage() {
   const supabase = createClientComponentClient<Database>();
   const router = useRouter();
-
-  const [contextBuckets, setContextBuckets] = useState(['Policies', 'Technical Narritives', 'My Files', 'No Bucket']);
+  const [contextBuckets, setContextBuckets] = useState<string[]>(['Policies', 'Technical Narritives', 'RFIs', 'My Files', 'No Bucket'])
   const [selectedDocument, setSelectedDocument] = useState({id:null, context_buckets:null})
   const [selectedContext, setSelectedContext] = useState("My Files")
   const [text, setText] = useState<(PDFLine | PDFTable)[]>([])
 
   const { data: documents, refetch: refetchDocuments } = useQuery(['files'], async () => {
     const { data, error } = await supabase
-      .from('documents_with_original_storage_path')
+      .from('documents_with_storage_path')
       .select();
 
     if (error) {

@@ -56,14 +56,16 @@ export const FileCard: React.FC<Props> = ({document, refetchDocuments, selectedD
                 return;
               }
               if(confirm("Are you sure you want to delete this file?")) {
+                console.log(document.storage_object_path)
                 const { data, error } = await supabase.storage
-                  .from('original_files')
+                  .from('files')
                   .remove([document.storage_object_path])
                 if (error) {
                   toast({
                     variant: 'destructive',
                     description: 'Failed to delete file. Please try again.',
                   });
+                  console.error(error)
                   return;
                 }
                 refetchDocuments();

@@ -7,10 +7,7 @@
 import { createClientComponentClient } from 'https://esm.sh/@supabase/auth-helpers-nextjs'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
-console.log(`Function "validate-pdf-upload" up and running!`)
-
 Deno.serve(async (req) => {
-  console.log(req.method)
   if (req.method === 'OPTIONS') {
       return new Response(
           'ok',
@@ -40,7 +37,6 @@ Deno.serve(async (req) => {
       } = await supabaseClient.auth.getUser(token)
       const data = await req.json()
       const fileValidation = await validatePdfUpload(data.fileName, data.hash, supabaseClient)
-      console.log(fileValidation)
       return new Response(
         JSON.stringify(fileValidation),
         {
@@ -80,12 +76,10 @@ const validatePdfUpload = async (fileName: string, hash: string, supabase: any):
   }
   // const supabase = createClientComponentClient();
   const selectedFilename = standardizePdfFilename(fileName)
-  console.log("before first fetch")
   const { data: fetchHashData, error: fetchHashError} = await supabase
       .from('documents')
       .select()
-      .eq('original_file_hash', hash)
-    console.log("after first fetch")
+      .eq('file_hash', hash)
   if (fetchHashError) {
       fileValidation.message = 'Failed to query documents for this hash.'
       fileValidation.isValid = false

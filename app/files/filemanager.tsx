@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState} from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Database } from '@/supabase/functions/_lib/database';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ type Props = {
 }
 
 export const FileManager: React.FC<Props> = ({documents, refetchDocuments, contextBuckets, selectedDoc, selectDoc, selectedContext, setSelectedContext, setText}) => {
+    const [testVar, setTestVar] = useState(true)
     const supabase = createClientComponentClient<Database>();
 
     const handleContextChange = (event: SelectChangeEvent) => {
@@ -51,18 +52,9 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
         refetchDocuments()
         e.target.value = '';
     }
-    const testClick = async () => {
-        const response = await supabase.functions.invoke('parse-pdf',{
-            body: {path: '58a24035-790e-4e3c-8f77-0a8f32878dc0/PO-CEO-16 (07) Paid Time Off Policy 01-2023.pdf'}
-        })
-        setText(response.data.text)
-    }
-    const testClickClear = () => {
-        setText([])
-    }
     
     return(
-        <div className="max-w-6xl w-1/5 flex flex-col gap-8 grow-0 items-stretch">
+        <div className="max-w-6xl w-1/5 flex flex-col gap-8 grow-2 items-stretch">
             <div className="flex flex-col justify-center items-center border-b">
                 <Input
                     type="file"
@@ -74,8 +66,6 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                 />
             </div>
             <div style={{width: "100%", display: "flex", justifyContent: "space-between"}}>
-                <button onClick={testClick}>Test</button>
-                <button onClick={testClickClear}>Clear</button>
             </div>
             <div className="w-full">
                 <InputLabel id="context-bucket-label">
@@ -87,7 +77,9 @@ export const FileManager: React.FC<Props> = ({documents, refetchDocuments, conte
                     value={selectedContext}
                     onChange={handleContextChange}
                 >
-                    {contextBuckets.map((bucket, i) => <MenuItem value={bucket} key={i}>{bucket}</MenuItem>)}
+                    {contextBuckets.map((bucket, i) => {
+                        return(<MenuItem value={bucket} key={i}>{bucket}</MenuItem>)
+                    })}
                 </Select>
             </div>
             {documents && (

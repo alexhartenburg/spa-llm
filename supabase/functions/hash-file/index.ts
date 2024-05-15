@@ -7,11 +7,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { multiParser, FormFile } from 'https://deno.land/x/multiparser@0.114.0/mod.ts'
 
-console.log(`Function "hash-file" up and running!`)
-
 Deno.serve(async (req) => {
-  console.log(req)
-  console.log(req.method)
   if (req.method === 'OPTIONS') {
       return new Response(
           'ok',

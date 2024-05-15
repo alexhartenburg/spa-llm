@@ -49,6 +49,9 @@ const submitPdf = async (file: File): Promise<FileUploadStatus> => {
             uploadStatus.isUploaded = false
         }else{
             uploadStatus = await uploadFile(file, uploadStatus)
+            if(uploadStatus.documentId){
+                await parsePDF(uploadStatus.documentId)
+            }
         }
 
         // If the upload was successful and returned a valid document id, update the documents table entry with the has of the original file
@@ -58,10 +61,6 @@ const submitPdf = async (file: File): Promise<FileUploadStatus> => {
             uploadStatus.fileHashUpdateStatus = await updateFileHash(uploadStatus.documentId, hash)
         }
     }
-
-    // const formData = new FormData();
-    // formData.append('file', file);
-    // const test = await supabase.functions.invoke('parse-pdf', {body: formData})
     
     return uploadStatus;
 }
@@ -75,7 +74,7 @@ const uploadFile = async (file: File, uploadStatus: FileUploadStatus): Promise<F
     const selectedFilename = standardizePdfFilename(file.name)
     const fileNameWithPath = `${crypto.randomUUID()}/${selectedFilename}`;
     const { error: uploadFileError} = await supabase.storage
-        .from('original_files')
+        .from('files')
         .upload(
             fileNameWithPath,
             file
@@ -120,7 +119,7 @@ const updateFileHash = async (fileId: number, hash: string): Promise<FileHashUpd
     }
     const { error: errorUpdateHash } = await supabase
         .from('documents')
-        .update({original_file_hash: hash})
+        .update({file_hash: hash})
         .eq('id', fileId)
     if (errorUpdateHash) {
         fileHashUpdateStatus.message = 'Failed to update document hash. Please try again.'
@@ -131,7 +130,16 @@ const updateFileHash = async (fileId: number, hash: string): Promise<FileHashUpd
     return fileHashUpdateStatus
 }
 
-
+const parsePDF = async (document_id: number): Promise<void> => {
+    const supabase = createClientComponentClient<Database>();
+    const response = await supabase.functions.invoke('parse-pdf',{
+        body: {document_id: document_id}
+    })
+    // setText(response.data.text)
+    const processResponse = await supabase.functions.invoke('process',{
+        body: {text: response.data.text, document_id: document_id}
+    })
+}
 
 
 

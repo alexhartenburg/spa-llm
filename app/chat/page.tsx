@@ -1,5 +1,5 @@
 'use client';
-
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePipeline } from '@/lib/hooks/use-pipeline';
@@ -7,9 +7,25 @@ import { cn } from '@/lib/utils';
 import { Database } from '@/supabase/functions/_lib/database';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useChat } from 'ai/react';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 export default function ChatPage() {
   const supabase = createClientComponentClient<Database>();
+  const [contextBuckets, setContextBuckets] = useState<string[]>(['Policies', 'Technical Narritives', 'RFIs', 'My Files', 'No Bucket'])
+  const [selectedContexts, setSelectedContexts] = useState<string[]>(() => []);
+  const handleContextChange = (event: React.MouseEvent<HTMLElement>) => {
+    const target = event.currentTarget.textContent;
+    if(target === null) return;
+    if (selectedContexts.includes(target)) {
+      const newContexts = selectedContexts.filter((context) => context !== target);
+      setSelectedContexts(newContexts);
+      return;
+    }
+    const newContexts = JSON.parse(JSON.stringify(selectedContexts))
+    newContexts.push(target)
+    setSelectedContexts(newContexts);
+  };
 
   const generateEmbedding = usePipeline(
     'feature-extraction',
@@ -59,6 +75,19 @@ export default function ChatPage() {
             </div>
           )}
         </div>
+        <ToggleButtonGroup
+          color="primary"
+          value={selectedContexts}
+          exclusive
+          onChange={handleContextChange}
+          aria-label="Platform"
+        >
+          {contextBuckets.map((bucket, i) => {
+            return(
+              <ToggleButton key={i} value={bucket}>{bucket}</ToggleButton>
+            )
+          })}
+        </ToggleButtonGroup>
         <form
           className="flex items-center space-x-2 gap-2"
           onSubmit={async (e) => {
@@ -89,6 +118,7 @@ export default function ChatPage() {
                 },
                 body: {
                   embedding,
+                  selectedContexts
                 },
               },
             });
